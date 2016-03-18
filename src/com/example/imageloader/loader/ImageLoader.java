@@ -2,14 +2,16 @@ package com.example.imageloader.loader;
 
 import java.io.File;
 import java.io.IOException;
-
-import com.example.imageloader.loader.DiskLruCache.Snapshot;
+import java.io.InputStream;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Environment;
+import android.text.TextUtils;
 import android.util.LruCache;
+import android.widget.ImageView;
 
 /**
  * 要实现的功能:
@@ -29,21 +31,48 @@ public class ImageLoader {
     private int mMaxMemCacheSize;
     private int mMaxDiskCacheSize;
 
-    private ImageLoader() {
-        init();
+    private ImageLoader(Context context) {
+        init(context);
     }
 
-    public static ImageLoader get() {
+    public static ImageLoader get(Context context) {
         if (sImageLoader == null) {
-            sImageLoader = new ImageLoader();
+            sImageLoader = new ImageLoader(context);
         }
         return sImageLoader;
     }
 
-    private void init() {
+    private void init(Context context) {
         initMaxCacheSize();
         initLruCache();
-        initDiskLruCache();
+        initDiskLruCache(context);
+    }
+
+    public void load(ImageView imageView, String url) {
+        Bitmap bmp = getBitmapFromCache(url);
+        if (bmp != null) {
+            imageView.setImageBitmap(bmp);
+        } else {
+            imageView.setTag(url);
+            loadBitmapFromHttp(imageView, url);
+        }
+    }
+
+    private void loadBitmapFromHttp(ImageView imageView, String url) {
+
+    }
+
+    private Bitmap getBitmapFromCache(String url) {
+        // 得到md5
+        String key = LoaderUtils.encodeMd5(url);
+        if (TextUtils.isEmpty(key)) {
+            return null;
+        }
+        Bitmap bitmap = getBitmapFromMemory(key);
+        if (bitmap == null) {
+            bitmap = getBitmapFromDiskCache(key);
+        }
+        return bitmap;
     }
 
     public void initMaxCacheSize() {
@@ -62,6 +91,10 @@ public class ImageLoader {
                 }
             };
         }
+    }
+
+    private Bitmap getBitmapFromMemory(String key) {
+        return mMemLruCache.get(key);
     }
 
     private void initDiskLruCache(Context context) {
@@ -98,7 +131,12 @@ public class ImageLoader {
         }
     }
 
-    private DiskLruCache.Snapshot getBitmapFromDiskCache(String key) {
+    private Bitmap getBitmapFromDiskCache(String key) {
+        DiskLruCache.Snapshot snap = getBitmapSnapshotFromDiskCache(key);
+        return getBitmapFromSnapshot(snap);
+    }
+
+    private DiskLruCache.Snapshot getBitmapSnapshotFromDiskCache(String key) {
         DiskLruCache.Snapshot snapShort = null;
         synchronized (mDiskCacheLock) {
             while(mDiskCacheStarting) {
@@ -118,4 +156,14 @@ public class ImageLoader {
         }
         return snapShort;
     }
+
+    /////////////这个地方好像有问题,需要确认
+    private Bitmap getBitmapFromSnapshot(DiskLruCache.Snapshot snap) {
+        if (snap == null) {
+            return null;
+        }
+        InputStream is = snap.getInputStream(0);
+        return BitmapFactory.decodeStream(is);
+    }
+
 }
