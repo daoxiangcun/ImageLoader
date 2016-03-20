@@ -15,6 +15,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Environment;
+
 import android.os.Handler;
 import android.os.Message;
 import android.text.TextUtils;
@@ -162,6 +163,35 @@ public class ImageLoader {
             }
         }
         return null;
+=======
+    }
+
+    public void load(ImageView imageView, String url) {
+        Bitmap bmp = getBitmapFromCache(url);
+        if (bmp != null) {
+            imageView.setImageBitmap(bmp);
+        } else {
+            imageView.setTag(url);
+            loadBitmapFromHttp(imageView, url);
+        }
+    }
+
+    private void loadBitmapFromHttp(ImageView imageView, String url) {
+
+    }
+
+    private Bitmap getBitmapFromCache(String url) {
+        // µÃµ½md5
+        String key = LoaderUtils.encodeMd5(url);
+        if (TextUtils.isEmpty(key)) {
+            return null;
+        }
+        Bitmap bitmap = getBitmapFromMemory(key);
+        if (bitmap == null) {
+            bitmap = getBitmapFromDiskCache(key);
+        }
+        return bitmap;
+>>>>>>> bdf0615235ca9e18e845a6c8ef336ba1ec122519
     }
 
     public void initMaxCacheSize() {
